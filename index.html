@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>سباق الطريق</title>
+<style>
+    :root {
+        --bg: #08111b;
+        --panel: rgba(8, 17, 27, 0.9);
+        --text: #f5f8fb;
+        --muted: #aab7c4;
+        --accent: #19c3ff;
+        --accent-2: #65e66b;
+        --danger: #ff5268;
+        --road: #252d36;
+        --road-edge: #f0c64b;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    html,
+    body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Tahoma, Arial, sans-serif;
+        touch-action: none;
+    }
+
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .game {
+        position: relative;
+        width: min(100vw, 720px);
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
+        background: #101820;
+    }
+
+    canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+
+    .hud {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        left: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        z-index: 4;
+        pointer-events: none;
+    }
+
+    .stat {
+        padding: 8px 6px;
+        border: 1px solid rgba(255, 255, 255, .13);
+        border-radius: 13px;
+        background: rgba(5, 12, 19, .78);
+        backdrop-filter: blur(5px);
+        text-align: center;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, .2);
+    }
+
+    .stat-label {
+        display: block;
+        color: var(--muted);
+        font-size: .68rem;
+        margin-bottom: 2px;
+    }
+
+    .stat-value {
+        font-weight: 800;
+        font-size: clamp(.95rem, 3.8vw, 1.3rem);
+        white-space: nowrap;
+    }
+
+    .turn {
+        position: absolute;
+        top: 105px;
+        right: 50%;
+        transform: translateX(50%);
+        z-index: 5;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: rgba(5, 12, 19, .82);
+        border: 1px solid rgba(255, 255, 255, .14);
+        font-size: .82rem;
+        font-weight: 700;
+        display: none;
+    }
+
+    .turn.show {
+        display: block;
+    }
+
+    .controls {
+        position: absolute;
+        z-index: 4;
+        bottom: max(18px, env(safe-area-inset-bottom));
+        right: 0;
+        left: 0;
+        display: flex;
+        justify-content: space-between;
+        padding: 0 18px;
+        pointer-events: none;
+    }
+
+    .control {
+        width: clamp(76px, 18vw, 108px);
+        height: clamp(64px, 14vw, 86px);
+        border: 1px solid rgba(255, 255, 255, .2);
+        border-radius: 22px;
+        background: rgba(7, 14, 22, .82);
+        color: white;
+        font-size: clamp(2rem, 7vw, 3rem);
+        font-weight: 800;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, .3);
+        pointer-events: auto;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .control:active {
+        transform: scale(.96);
+        background: rgba(30, 49, 66, .95);
+    }
+
+    .overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 22px;
+        background: rgba(2, 7, 12, .56);
+        backdrop-filter: blur(4px);
+    }
+
+    .overlay.hidden {
+        display: none;
+    }
+
+    .card {
+        width: min(460px, 100%);
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, .17);
+        border-radius: 24px;
+        background: var(--panel);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
+        text-align: center;
+    }
+
+    h1,
+    h2 {
+        margin: 0 0 8px;
+    }
+
+    h1 {
+        font-size: clamp(1.8rem, 7vw, 2.8rem);
+    }
+
+    h2 {
+        font-size: clamp(1.5rem, 6vw, 2.2rem);
+    }
+
+    .subtitle {
+        margin: 0 0 18px;
+        color: var(--muted);
+        line-height: 1.6;
+    }
+
+    .form {
+        display: grid;
+        gap: 10px;
+        text-align: right;
+        margin-bottom: 16px;
+    }
+
+    label {
+        color: var(--muted);
+        font-size: .82rem;
+    }
+
+    input,
+    select {
+        width: 100%;
+        padding: 11px 12px;
+        border: 1px solid rgba(255, 255, 255, .16);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .07);
+        color: white;
+        font: inherit;
+        outline: none;
+    }
+
+    input:focus,
+    select:focus {
+        border-color: var(--accent);
+    }
+
+    .hidden-field {
+        display: none;
+    }
+
+    .primary {
+        width: 100%;
+        border: 0;
+        border-radius: 15px;
+        padding: 13px 18px;
+        background: var(--accent);
+        color: #03121a;
+        font: inherit;
+        font-weight: 900;
+        font-size: 1.05rem;
+        cursor: pointer;
+    }
+
+    .primary:active {
+        transform: scale(.985);
+    }
+
+    .result {
+        display: grid;
+        gap: 7px;
+        margin: 15px 0 18px;
+    }
+
+    .result-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 9px 12px;
+        border-radius: 11px;
+        background: rgba(255, 255, 255, .06);
+    }
+
+    .result-row span:first-child {
+        color: var(--muted);
+    }
+
+    .leaderboard {
+        margin-top: 18px;
+        text-align: right;
+        border-top: 1px solid rgba(255, 255, 255, .12);
+        padding-top: 14px;
+    }
+
+    .leaderboard h3 {
+        margin: 0 0 8px;
+        font-size: .95rem;
+    }
+
+    .scores {
+        display: grid;
+        gap: 5px;
+        max-height: 155px;
+        overflow: auto;
+    }
+
+    .score-row {
+        display: grid;
+        grid-template-columns: 28px 1fr auto;
+        gap: 8px;
+        align-items: center;
+        padding: 7px 9px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, .045);
+        font-size: .82rem;
+    }
+
+    .empty {
+        color: var(--muted);
+        font-size: .8rem;
+        text-align: center;
+        padding: 7px;
+    }
+
+    .error {
+        color: #ff9aa8;
+        min-height: 1.2em;
+        font-size: .8rem;
+        margin-top: 8px;
+    }
+
+    @media (max-height: 620px) {
+        .hud {
+            top: 8px;
+        }
+
+        .turn {
+            top: 78px;
+        }
+
+        .controls {
+            bottom: 8px;
+        }
+
+        .card {
+            padding: 17px;
+        }
+
+        .leaderboard {
+            margin-top: 10px;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="game" id="game">
+
+    <canvas id="canvas"></canvas>
+
+    <section class="hud" aria-label="إحصاءات السباق">
+
+        <div class="stat">
+            <span class="stat-label">المسافة</span>
+            <span class="stat-value" id="distance">٠ م</span>
+        </div>
+
+        <div class="stat">
+            <span class="stat-label">مضاعف السرعة</span>
+            <span class="stat-value" id="multiplier">×١٫٠</span>
+        </div>
+
+        <div class="stat">
+            <span class="stat-label">أفضل نتيجة</span>
+            <span class="stat-value" id="best">٠ م</span>
+        </div>
+
+    </section>
+
+    <div class="turn" id="turnIndicator">دور اللاعب ١</div>
+
+    <div class="controls" aria-label="التحكم">
+
+        <button
+            class="control"
+            id="leftButton"
+            type="button"
+            aria-label="المسار الأيسر"
+        >←</button>
+
+        <button
+            class="control"
+            id="rightButton"
+            type="button"
+            aria-label="المسار الأيمن"
+        >→</button>
+
+    </div>
+
+    <div class="overlay" id="startOverlay">
+
+        <div class="card">
+
+            <h1>سباق الطريق</h1>
+
+            <p class="subtitle">
+                تجاوز السيارات وحافظ على مسارك لأطول مسافة ممكنة.
+            </p>
+
+            <div class="form">
+
+                <label for="player1Name">
+                    اسم اللاعب الأول
+                </label>
+
+                <input
+                    id="player1Name"
+                    maxlength="20"
+                    value="اللاعب ١"
+                    autocomplete="off"
+                >
+
+                <label for="mode">
+                    نمط اللعب
+                </label>
+
+                <select id="mode">
+
+                    <option value="single">
+                        لاعب واحد
+                    </option>
+
+                    <option value="two">
+                        لاعبان بالتناوب
+                    </option>
+
+                </select>
+
+                <div id="player2Field" class="hidden-field">
+
+                    <label for="player2Name">
+                        اسم اللاعب الثاني
+                    </label>
+
+                    <input
+                        id="player2Name"
+                        maxlength="20"
+                        value="اللاعب ٢"
+                        autocomplete="off"
+                    >
+
+                </div>
+
+            </div>
+
+            <button
+                class="primary"
+                id="startButton"
+                type="button"
+            >
+                ابدأ السباق
+            </button>
+
+            <div class="error" id="startError"></div>
+
+            <div class="leaderboard">
+
+                <h3>
+                    أفضل النتائج — محفوظة على هذا الجهاز
+                </h3>
+
+                <div class="scores" id="startScores"></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="overlay hidden" id="endOverlay">
+
+        <div class="card">
+
+            <h2 id="endTitle">
+                انتهت الجولة
+            </h2>
+
+            <p class="subtitle" id="endMessage"></p>
+
+            <div class="result" id="roundResults"></div>
+
+            <div class="leaderboard">
+
+                <h3>
+                    أفضل النتائج
+                </h3>
+
+                <div class="scores" id="endScores"></div>
+
+            </div>
+
+            <button
+                class="primary"
+                id="endButton"
+                type="button"
+            >
+                إعادة اللعب
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+"use strict";
+
+// Game tuning values.
+const INITIAL_SPEED = 270;
+const SPEED_INCREASE = 15;
+const MAX_SPEED = 720;
+const ROW_DISTANCE = 430;
+const LANE_COUNT = 3;
+
+// Collision boxes are intentionally smaller than the drawn cars.
+const COLLISION_SCALE = 0.72;
+const ROAD_WIDTH_RATIO = 0.62;
+const MAX_FRAME_DELTA = 0.05;
+const SCORE_STORAGE_KEY = "roadRaceBestScoresV1";
+const MAX_LEADERBOARD_ENTRIES = 10;
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const game = document.getElementById("game");
+
+const distanceEl = document.getElementById("distance");
+const multiplierEl = document.getElementById("multiplier");
+const bestEl = document.getElementById("best");
+
+const turnIndicator = document.getElementById("turnIndicator");
+
+const startOverlay = document.getElementById("startOverlay");
+const endOverlay = document.getElementById("endOverlay");
+
+const startButton = document.getElementById("startButton");
+const endButton = document.getElementById("endButton");
+
+const modeEl = document.getElementById("mode");
+
+const player1NameEl =
+    document.getElementById("player1Name");
+
+const player2NameEl =
+    document.getElementById("player2Name");
+
+const player2Field =
+    document.getElementById("player2Field");
+
+const startError =
+    document.getElementById("startError");
+
+const startScores =
+    document.getElementById("startScores");
+
+const endScores =
+    document.getElementById("endScores");
+
+const endTitle =
+    document.getElementById("endTitle");
+
+const endMessage =
+    document.getElementById("endMessage");
+
+const roundResults =
+    document.getElementById("roundResults");
+
+const leftButton =
+    document.getElementById("leftButton");
+
+const rightButton =
+    document.getElementById("rightButton");
+
+let width = 0;
+let height = 0;
+let dpr = 1;
+
+let animationFrameId = null;
+let lastTimestamp = null;
+
+let gameState = "menu";
+
+let gameMode = "single";
+
+let currentPlayer = 0;
+let players = [];
+
+let distance = 0;
+let speed = INITIAL_SPEED;
+
+let playerLane = 1;
+let playerLaneVisual = 1;
+
+let obstacles = [];
+
+let roadOffset = 0;
+let spawnDistance = ROW_DISTANCE;
+
+let touchStartX = null;
+
+function arabicNumber(value, digits = 0) {
+    const fixed = Number(value).toFixed(digits);
+
+    return fixed
+        .replace(".", "٫")
+        .replace(/-/g, "−")
+        .replace(
+            /[0-9]/g,
+            digit => "٠١٢٣٤٥٦٧٨٩"[digit]
+        );
+}
+
+function formatDistance(value) {
+    return `${arabicNumber(Math.floor(value))} م`;
+}
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function resizeCanvas() {
+    const rect = game.getBoundingClientRect();
+
+    width = Math.max(1, rect.width);
+    height = Math.max(1, rect.height);
+
+    dpr = Math.min(
+        window.devicePixelRatio || 1,
+        2
+    );
+
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    ctx.setTransform(
+        dpr,
+        0,
+        0,
+        dpr,
+        0,
+        0
+    );
+}
+
+function roadMetrics() {
+    const roadWidth =
+        Math.min(
+            width * ROAD_WIDTH_RATIO,
+            540
+        );
+
+    const roadLeft =
+        (width - roadWidth) / 2;
+
+    const laneWidth =
+        roadWidth / LANE_COUNT;
+
+    return {
+        roadWidth,
+        roadLeft,
+        laneWidth,
+        roadRight: roadLeft + roadWidth
+    };
+}
+
+function laneCenter(lane) {
+    const road = roadMetrics();
+
+    return (
+        road.roadLeft +
+        road.laneWidth * (lane + 0.5)
+    );
+}
+
+function carDimensions() {
+    const road = roadMetrics();
+
+    const carWidth =
+        Math.min(
+            road.laneWidth * 0.62,
+            82
+        );
+
+    return {
+        width: carWidth,
+        height: carWidth * 1.62
+    };
+}
+
+function playerY() {
+    return (
+        height -
+        Math.max(
+            115,
+            height * 0.18
+        )
+    );
+}
+
+function resetRoundState() {
+    distance = 0;
+    speed = INITIAL_SPEED;
+
+    playerLane = 1;
+    playerLaneVisual = 1;
+
+    obstacles = [];
+
+    roadOffset = 0;
+    spawnDistance = ROW_DISTANCE;
+
+    lastTimestamp = null;
+}
+
+function updateHUD() {
+    distanceEl.textContent =
+        formatDistance(distance);
+
+    multiplierEl.textContent =
+        `×${arabicNumber(
+            speed / INITIAL_SPEED,
+            1
+        )}`;
+
+    bestEl.textContent =
+        formatDistance(getSessionBest());
+
+    if (
+        gameMode === "two" &&
+        players.length >= 2
+    ) {
+        turnIndicator.textContent =
+            `دور ${players[currentPlayer].name}`;
+
+        turnIndicator.classList.add("show");
+    } else {
+        turnIndicator.classList.remove("show");
+    }
+}
+
+function getSessionScores() {
+    try {
+        const raw =
+            localStorage.getItem(
+                SCORE_STORAGE_KEY
+            );
+
+        const parsed =
+            JSON.parse(raw || "[]");
+
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        return parsed.filter(item =>
+            item &&
+            typeof item.name === "string" &&
+            Number.isFinite(item.score)
+        );
+
+    } catch {
+        return [];
+    }
+}
+
+function saveScore(name, score) {
+    const cleanName =
+        name.trim().slice(0, 20) || "لاعب";
+
+    const scores =
+        getSessionScores();
+
+    scores.push({
+        name: cleanName,
+        score: Math.max(
+            0,
+            Math.floor(score)
+        ),
+        time: Date.now()
+    });
+
+    scores.sort(
+        (a, b) =>
+            b.score - a.score ||
+            a.time - b.time
+    );
+
+    try {
+        localStorage.setItem(
+            SCORE_STORAGE_KEY,
+            JSON.stringify(
+                scores.slice(
+                    0,
+                    MAX_LEADERBOARD_ENTRIES
+                )
+            )
+        );
+    } catch {
+        // Ignore storage failures and keep the game playable.
+    }
+}
+
+function getSessionBest() {
+    const scores =
+        getSessionScores();
+
+    if (!scores.length) {
+        return 0;
+    }
+
+    return Math.max(
+        ...scores.map(
+            item => item.score
+        )
+    );
+}
+
+function renderScores(target) {
+    const scores =
+        getSessionScores();
+
+    target.replaceChildren();
+
+    if (!scores.length) {
+        const empty =
+            document.createElement("div");
+
+        empty.className = "empty";
+        empty.textContent =
+            "لا توجد نتائج محفوظة بعد.";
+
+        target.appendChild(empty);
+
+        return;
+    }
+
+    scores.forEach(
+        (item, index) => {
+            const row =
+                document.createElement("div");
+
+            row.className =
+                "score-row";
+
+            const rank =
+                document.createElement("strong");
+
+            rank.textContent =
+                arabicNumber(index + 1);
+
+            const name =
+                document.createElement("span");
+
+            name.textContent =
+                item.name;
+
+            const score =
+                document.createElement("strong");
+
+            score.textContent =
+                formatDistance(item.score);
+
+            row.append(
+                rank,
+                name,
+                score
+            );
+
+            target.appendChild(row);
+        }
+    );
+}
+
+function updateModeFields() {
+    const twoPlayers =
+        modeEl.value === "two";
+
+    player2Field.classList.toggle(
+        "hidden-field",
+        !twoPlayers
+    );
+}
+
+function movePlayer(direction) {
+    if (gameState !== "playing") {
+        return;
+    }
+
+    playerLane =
+        clamp(
+            playerLane + direction,
+            0,
+            LANE_COUNT - 1
+        );
+}
+
+function startAnimationLoop() {
+    if (animationFrameId !== null) {
+        cancelAnimationFrame(
+            animationFrameId
+        );
+
+        animationFrameId = null;
+    }
+
+    lastTimestamp = null;
+
+    animationFrameId =
+        requestAnimationFrame(
+            gameLoop
+        );
+}
+
+function stopAnimationLoop() {
+    if (animationFrameId !== null) {
+        cancelAnimationFrame(
+            animationFrameId
+        );
+
+        animationFrameId = null;
+    }
+
+    lastTimestamp = null;
+}
+
+function gameLoop(timestamp) {
+    animationFrameId = null;
+
+    if (gameState !== "playing") {
+        return;
+    }
+
+    if (lastTimestamp === null) {
+        lastTimestamp = timestamp;
+    }
+
+    const rawDelta =
+        (timestamp - lastTimestamp) /
+        1000;
+
+    const delta =
+        clamp(
+            rawDelta,
+            0,
+            MAX_FRAME_DELTA
+        );
+
+    lastTimestamp = timestamp;
+
+    update(delta);
+    draw();
+
+    if (gameState === "playing") {
+        animationFrameId =
+            requestAnimationFrame(
+                gameLoop
+            );
+    }
+}
+
+function update(delta) {
+    speed =
+        Math.min(
+            MAX_SPEED,
+            speed +
+            SPEED_INCREASE * delta
+        );
+
+    distance +=
+        speed * delta;
+
+    roadOffset =
+        (
+            roadOffset +
+            speed * delta
+        ) % 90;
+
+    const smoothing =
+        1 -
+        Math.exp(
+            -12 * delta
+        );
+
+    playerLaneVisual +=
+        (
+            playerLane -
+            playerLaneVisual
+        ) * smoothing;
+
+    spawnDistance -=
+        speed * delta;
+
+    if (spawnDistance <= 0) {
+        spawnObstacleRow();
+
+        spawnDistance +=
+            ROW_DISTANCE;
+    }
+
+    for (const obstacle of obstacles) {
+        obstacle.y +=
+            speed * delta;
+    }
+
+    obstacles =
+        obstacles.filter(
+            obstacle =>
+                obstacle.y <
+                height + 160
+        );
+
+    checkCollisions();
+    updateHUD();
+}
+
+function spawnObstacleRow() {
+    const blockedCount =
+        Math.random() < 0.72
+            ? 2
+            : 1;
+
+    const lanes = [0, 1, 2];
+
+    for (
+        let i = lanes.length - 1;
+        i > 0;
+        i--
+    ) {
+        const j =
+            Math.floor(
+                Math.random() *
+                (i + 1)
+            );
+
+        [
+            lanes[i],
+            lanes[j]
+        ] =
+        [
+            lanes[j],
+            lanes[i]
+        ];
+    }
+
+    const blocked =
+        lanes.slice(
+            0,
+            blockedCount
+        );
+
+    blocked.forEach(
+        (lane, index) => {
+            obstacles.push({
+                lane,
+                y:
+                    -120 -
+                    index * 22,
+                type:
+                    Math.floor(
+                        Math.random() * 4
+                    ),
+                scale:
+                    0.94 +
+                    Math.random() * 0.1
+            });
+        }
+    );
+}
+
+function getPlayerCollisionBox() {
+    const dimensions =
+        carDimensions();
+
+    const w =
+        dimensions.width *
+        COLLISION_SCALE;
+
+    const h =
+        dimensions.height *
+        COLLISION_SCALE;
+
+    return {
+        x:
+            laneCenter(
+                playerLaneVisual
+            ) -
+            w / 2,
+
+        y:
+            playerY() -
+            h / 2,
+
+        width: w,
+        height: h
+    };
+}
+
+function getObstacleCollisionBox(
+    obstacle
+) {
+    const dimensions =
+        carDimensions();
+
+    const w =
+        dimensions.width *
+        obstacle.scale *
+        COLLISION_SCALE;
+
+    const h =
+        dimensions.height *
+        obstacle.scale *
+        COLLISION_SCALE;
+
+    return {
+        x:
+            laneCenter(
+                obstacle.lane
+            ) -
+            w / 2,
+
+        y:
+            obstacle.y -
+            h / 2,
+
+        width: w,
+        height: h
+    };
+}
+
+function boxesOverlap(a, b) {
+    return (
+        a.x <
+            b.x + b.width &&
+        a.x + a.width >
+            b.x &&
+        a.y <
+            b.y + b.height &&
+        a.y + a.height >
+            b.y
+    );
+}
+
+function checkCollisions() {
+    const playerBox =
+        getPlayerCollisionBox();
+
+    for (
+        const obstacle of obstacles
+    ) {
+        if (
+            boxesOverlap(
+                playerBox,
+                getObstacleCollisionBox(
+                    obstacle
+                )
+            )
+        ) {
+            finishTurn();
+            return;
+        }
+    }
+}
+
+function drawRoad() {
+    const road =
+        roadMetrics();
+
+    ctx.fillStyle =
+        "#0a151d";
+
+    ctx.fillRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+    ctx.fillStyle =
+        "#12221b";
+
+    ctx.fillRect(
+        0,
+        0,
+        road.roadLeft,
+        height
+    );
+
+    ctx.fillRect(
+        road.roadRight,
+        0,
+        width -
+            road.roadRight,
+        height
+    );
+
+    for (
+        let y =
+            -40 +
+            roadOffset * 0.65;
+
+        y <
+            height + 50;
+
+        y += 58
+    ) {
+        ctx.fillStyle =
+            "rgba(98, 137, 92, .22)";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            road.roadLeft * 0.35,
+            y,
+            5,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fill();
+
+        ctx.fillStyle =
+            "rgba(120, 140, 100, .18)";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            road.roadRight +
+                (
+                    width -
+                    road.roadRight
+                ) *
+                0.45,
+
+            y + 19,
+            7,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fill();
+    }
+
+    ctx.fillStyle =
+        "#252d36";
+
+    ctx.fillRect(
+        road.roadLeft,
+        0,
+        road.roadWidth,
+        height
+    );
+
+    ctx.fillStyle =
+        "#f0c64b";
+
+    ctx.fillRect(
+        road.roadLeft,
+        0,
+        4,
+        height
+    );
+
+    ctx.fillRect(
+        road.roadRight - 4,
+        0,
+        4,
+        height
+    );
+
+    ctx.strokeStyle =
+        "rgba(255,255,255,.72)";
+
+    ctx.lineWidth = 3;
+
+    for (
+        let lane = 1;
+        lane < LANE_COUNT;
+        lane++
+    ) {
+        const x =
+            road.roadLeft +
+            road.laneWidth *
+            lane;
+
+        for (
+            let y =
+                -80 +
+                roadOffset;
+
+            y <
+                height + 80;
+
+            y += 92
+        ) {
+            ctx.beginPath();
+
+            ctx.moveTo(
+                x,
+                y
+            );
+
+            ctx.lineTo(
+                x,
+                y + 48
+            );
+
+            ctx.stroke();
+        }
+    }
+
+    ctx.strokeStyle =
+        "rgba(255,255,255,.08)";
+
+    ctx.lineWidth = 2;
+
+    for (
+        let y =
+            -20 +
+            roadOffset * 1.5;
+
+        y <
+            height + 30;
+
+        y += 75
+    ) {
+        ctx.beginPath();
+
+        ctx.moveTo(
+            road.roadLeft + 15,
+            y
+        );
+
+        ctx.lineTo(
+            road.roadRight - 15,
+            y
+        );
+
+        ctx.stroke();
+    }
+}
+
+function drawCar(
+    x,
+    y,
+    widthValue,
+    heightValue,
+    type,
+    player = false
+) {
+    const w =
+        widthValue;
+
+    const h =
+        heightValue;
+
+    const left =
+        x - w / 2;
+
+    const top =
+        y - h / 2;
+
+    ctx.save();
+
+    ctx.fillStyle =
+        "rgba(0,0,0,.32)";
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        x,
+        top + h * .52,
+        w * .48,
+        h * .47,
+        0,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
+
+    const bodyColor =
+        player
+            ? "#1677e8"
+            : [
+                "#e53d4f",
+                "#35ad45",
+                "#f0a21a",
+                "#7c55d8"
+            ][type % 4];
+
+    ctx.fillStyle =
+        bodyColor;
+
+    ctx.beginPath();
+
+    ctx.roundRect(
+        left,
+        top,
+        w,
+        h,
+        w * .2
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle =
+        "rgba(255,255,255,.18)";
+
+    ctx.beginPath();
+
+    ctx.roundRect(
+        left + w * .08,
+        top + h * .06,
+        w * .84,
+        h * .25,
+        w * .13
+    );
+
+    ctx.fill();
+
+    ctx.fillStyle =
+        "#0b1722";
+
+    ctx.beginPath();
+
+    ctx.roundRect(
+        left + w * .16,
+        top + h * .23,
+        w * .68,
+        h * .24,
+        w * .1
+    );
+
+    ctx.fill();
+
+    if (player) {
+        ctx.fillStyle =
+            "rgba(255,255,255,.9)";
+
+        ctx.fillRect(
+            x - w * .09,
+            top + h * .04,
+            w * .07,
+            h * .78
+        );
+
+        ctx.fillRect(
+            x + w * .02,
+            top + h * .04,
+            w * .07,
+            h * .78
+        );
+
+    } else {
+        ctx.fillStyle =
+            "rgba(255,255,255,.72)";
+
+        ctx.fillRect(
+            x - w * .05,
+            top + h * .035,
+            w * .1,
+            h * .12
+        );
+    }
+
+    ctx.fillStyle =
+        player
+            ? "#ff4e5f"
+            : "#ffe8a3";
+
+    ctx.fillRect(
+        left + w * .14,
+        top + h * .84,
+        w * .18,
+        h * .06
+    );
+
+    ctx.fillRect(
+        left + w * .68,
+        top + h * .84,
+        w * .18,
+        h * .06
+    );
+
+    ctx.fillStyle =
+        "#111820";
+
+    ctx.fillRect(
+        left - w * .04,
+        top + h * .31,
+        w * .08,
+        h * .18
+    );
+
+    ctx.fillRect(
+        left + w * .96,
+        top + h * .31,
+        w * .08,
+        h * .18
+    );
+
+    ctx.restore();
+}
+
+function draw() {
+    ctx.clearRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+    drawRoad();
+
+    const dimensions =
+        carDimensions();
+
+    obstacles.forEach(
+        obstacle => {
+            drawCar(
+                laneCenter(
+                    obstacle.lane
+                ),
+                obstacle.y,
+                dimensions.width *
+                    obstacle.scale,
+                dimensions.height *
+                    obstacle.scale,
+                obstacle.type,
+                false
+            );
+        }
+    );
+
+    drawCar(
+        laneCenter(
+            playerLaneVisual
+        ),
+        playerY(),
+        dimensions.width,
+        dimensions.height,
+        0,
+        true
+    );
+}
+
+function beginPlayerTurn(index) {
+    currentPlayer = index;
+
+    resetRoundState();
+
+    gameState = "playing";
+
+    endOverlay.classList.add(
+        "hidden"
+    );
+
+    startOverlay.classList.add(
+        "hidden"
+    );
+
+    updateHUD();
+    draw();
+
+    startAnimationLoop();
+}
+
+function finishTurn() {
+    if (gameState !== "playing") {
+        return;
+    }
+
+    gameState = "turnEnd";
+
+    stopAnimationLoop();
+
+    const score =
+        Math.floor(distance);
+
+    players[currentPlayer].score =
+        score;
+
+    saveScore(
+        players[currentPlayer].name,
+        score
+    );
+
+    if (
+        gameMode === "two" &&
+        currentPlayer === 0
+    ) {
+        beginPlayerTurn(1);
+        return;
+    }
+
+    showFinalResults();
+}
+
+function showFinalResults() {
+    gameState = "finished";
+
+    stopAnimationLoop();
+
+    const best =
+        Math.max(
+            ...players.map(
+                player => player.score
+            )
+        );
+
+    bestEl.textContent =
+        formatDistance(best);
+
+    roundResults.replaceChildren();
+
+    players.forEach(
+        (player, index) => {
+            const row =
+                document.createElement(
+                    "div"
+                );
+
+            row.className =
+                "result-row";
+
+            const label =
+                document.createElement(
+                    "span"
+                );
+
+            label.textContent =
+                player.name;
+
+            const value =
+                document.createElement(
+                    "strong"
+                );
+
+            value.textContent =
+                formatDistance(
+                    player.score
+                );
+
+            row.append(
+                label,
+                value
+            );
+
+            roundResults.appendChild(
+                row
+            );
+        }
+    );
+
+    if (gameMode === "two") {
+
+        if (
+            players[0].score ===
+            players[1].score
+        ) {
+            endTitle.textContent =
+                "تعادل";
+
+            endMessage.textContent =
+                `تعادل بين ${players[0].name} و${players[1].name}.`;
+
+        } else {
+
+            const winner =
+                players[0].score >
+                players[1].score
+                    ? players[0]
+                    : players[1];
+
+            endTitle.textContent =
+                "انتهت الجولة";
+
+            endMessage.textContent =
+                `الفائز: ${winner.name}`;
+        }
+
+    } else {
+
+        endTitle.textContent =
+            "انتهت الجولة";
+
+        endMessage.textContent =
+            `${players[0].name} قطع ${formatDistance(players[0].score)}.`;
+    }
+
+    renderScores(endScores);
+
+    endOverlay.classList.remove(
+        "hidden"
+    );
+
+    updateHUD();
+    draw();
+}
+
+function validateNames() {
+    const name1 =
+        player1NameEl.value.trim();
+
+    const name2 =
+        player2NameEl.value.trim();
+
+    if (!name1) {
+        startError.textContent =
+            "أدخل اسم اللاعب الأول.";
+
+        player1NameEl.focus();
+
+        return null;
+    }
+
+    if (
+        modeEl.value === "two" &&
+        !name2
+    ) {
+        startError.textContent =
+            "أدخل اسم اللاعب الثاني.";
+
+        player2NameEl.focus();
+
+        return null;
+    }
+
+    if (
+        modeEl.value === "two" &&
+        name1 === name2
+    ) {
+        startError.textContent =
+            "اختر اسمين مختلفين للاعبين.";
+
+        player2NameEl.focus();
+
+        return null;
+    }
+
+    startError.textContent = "";
+
+    return {
+        name1,
+        name2
+    };
+}
+
+function startGame() {
+    const names =
+        validateNames();
+
+    if (!names) {
+        return;
+    }
+
+    gameMode =
+        modeEl.value;
+
+    players = [
+        {
+            name:
+                names.name1.slice(
+                    0,
+                    20
+                ),
+            score: 0
+        }
+    ];
+
+    if (gameMode === "two") {
+        players.push({
+            name:
+                names.name2.slice(
+                    0,
+                    20
+                ),
+            score: 0
+        });
+    }
+
+    beginPlayerTurn(0);
+}
+
+function restartGame() {
+    endOverlay.classList.add(
+        "hidden"
+    );
+
+    startOverlay.classList.remove(
+        "hidden"
+    );
+
+    renderScores(startScores);
+
+    startError.textContent = "";
+
+    gameState = "menu";
+
+    stopAnimationLoop();
+
+    resetRoundState();
+
+    updateHUD();
+    draw();
+}
+
+function handlePointerStart(event) {
+    if (gameState !== "playing") {
+        return;
+    }
+
+    touchStartX =
+        event.clientX;
+}
+
+function handlePointerEnd(event) {
+    if (
+        gameState !== "playing" ||
+        touchStartX === null
+    ) {
+        return;
+    }
+
+    const deltaX =
+        event.clientX -
+        touchStartX;
+
+    touchStartX = null;
+
+    if (
+        Math.abs(deltaX) < 24
+    ) {
+        return;
+    }
+
+    movePlayer(
+        deltaX > 0
+            ? 1
+            : -1
+    );
+}
+
+function handleKeyDown(event) {
+    if (
+        event.key ===
+        "ArrowLeft"
+    ) {
+        event.preventDefault();
+
+        movePlayer(-1);
+
+    } else if (
+        event.key ===
+        "ArrowRight"
+    ) {
+        event.preventDefault();
+
+        movePlayer(1);
+    }
+}
+
+modeEl.addEventListener(
+    "change",
+    updateModeFields
+);
+
+startButton.addEventListener(
+    "click",
+    startGame
+);
+
+endButton.addEventListener(
+    "click",
+    restartGame
+);
+
+leftButton.addEventListener(
+    "click",
+    () => movePlayer(-1)
+);
+
+rightButton.addEventListener(
+    "click",
+    () => movePlayer(1)
+);
+
+document.addEventListener(
+    "keydown",
+    handleKeyDown
+);
+
+game.addEventListener(
+    "pointerdown",
+    handlePointerStart
+);
+
+game.addEventListener(
+    "pointerup",
+    handlePointerEnd
+);
+
+game.addEventListener(
+    "pointercancel",
+    () => {
+        touchStartX = null;
+    }
+);
+
+window.addEventListener(
+    "resize",
+    () => {
+        resizeCanvas();
+        draw();
+    }
+);
+
+window.addEventListener(
+    "blur",
+    () => {
+        lastTimestamp = null;
+    }
+);
+
+document.addEventListener(
+    "visibilitychange",
+    () => {
+        if (document.hidden) {
+            lastTimestamp = null;
+        }
+    }
+);
+
+updateModeFields();
+resizeCanvas();
+renderScores(startScores);
+updateHUD();
+draw();
+</script>
+
+</body>
+</html>
